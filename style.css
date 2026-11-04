@@ -86,7 +86,7 @@ h2 { font-size: 1.1rem; margin: 0 0 12px; }
 .wheel.pence { color: var(--odo-pence); }
 .wheel.lead { color: var(--odo-dim); }
 
-.controls { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 18px 0 8px; }
+.controls { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; row-gap: 18px; margin: 18px 0 24px; }
 .btn {
   white-space: nowrap;
   font: inherit; font-weight: 600;
