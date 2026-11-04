@@ -221,18 +221,37 @@ function saveTeam(name) {
 }
 
 // ---------- URL sharing ----------
+// Links are base64url-encoded JSON. A shared result also carries
+// r: { c: cost in pence, t: elapsed ms }.
+function encode(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decode(str) {
+  // Current format first, then the original btoa(encodeURIComponent(json)) links.
+  try {
+    const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+  } catch {}
+  try { return JSON.parse(decodeURIComponent(atob(str))); } catch {}
+  return null;
+}
+function meetingUrl(withResult) {
+  const data = withResult && costPence
+    ? { ...state, r: { c: Math.round(costPence), t: Math.round(elapsedMs) } }
+    : state;
+  return location.href.split("#")[0] + "#m=" + encode(data);
+}
 function writeHash() {
-  const data = btoa(encodeURIComponent(JSON.stringify(state)));
-  try { history.replaceState(null, "", "#m=" + data); } catch {}
+  try { history.replaceState(null, "", "#m=" + encode(state)); } catch {}
 }
 function readHash() {
   const m = location.hash.match(/^#m=(.+)$/);
   if (!m) return null;
-  try {
-    const s = JSON.parse(decodeURIComponent(atob(m[1])));
-    if (Array.isArray(s.rows)) return s;
-  } catch {}
-  return null;
+  const s = decode(decodeURIComponent(m[1]));
+  return s && Array.isArray(s.rows) ? s : null;
 }
 
 // ---------- wiring ----------
@@ -268,10 +287,21 @@ function init() {
     saveTeam(name);
     $("#teamName").value = "";
   });
-  $("#copyResult").addEventListener("click", (e) => copy(resultSentence() + " " + location.href.split("#")[0], e.target));
-  $("#copyLink").addEventListener("click", (e) => copy(location.href, e.target));
+  $("#copyResult").addEventListener("click", (e) => copy(resultSentence() + " " + meetingUrl(true), e.target));
+  $("#copyLink").addEventListener("click", (e) => copy(meetingUrl(true), e.target));
 
-  applyState(readHash() || randomMeeting());
+  const shared = readHash();
+  applyState(shared || randomMeeting());
+  if (shared?.r?.c > 0) {
+    // Opened from a shared result: show the finished meeting.
+    costPence = shared.r.c;
+    elapsedMs = Math.max(0, shared.r.t || 0);
+    renderOdometer(costPence);
+    $("#elapsed").textContent = fmtTime(elapsedMs);
+    $("#reset").disabled = false;
+    showResult();
+    writeHash(); // keep the result out of the live URL so edits don't carry a stale total
+  }
   renderTeams();
 }
 init();
