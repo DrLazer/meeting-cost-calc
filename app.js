@@ -14,6 +14,7 @@ let running = false;
 let costPence = 0;     // accumulated cost in pence
 let elapsedMs = 0;     // meeting time (scaled by speed)
 let lastTick = 0;
+let activeTeam = null; // name of the saved team currently loaded, if any
 
 // ---------- money helpers ----------
 const gbp = (n, dp = 0) =>
@@ -146,9 +147,11 @@ function renderRows() {
     sal.classList.toggle("override", row.salary != null);
 
     role.addEventListener("change", () => { row.role = role.value.trim() || "Attendee"; row.salary = null; sal.value = rowSalary(row); sal.classList.remove("override"); changed(); });
+    n.addEventListener("input", () => { const v = parseInt(n.value); if (Number.isFinite(v)) { row.count = clamp(v); changed(); } });
     n.addEventListener("change", () => { row.count = clamp(parseInt(n.value) || 1); n.value = row.count; changed(); });
     li.querySelector(".dec").addEventListener("click", () => { row.count = clamp(row.count - 1); n.value = row.count; changed(); });
     li.querySelector(".inc").addEventListener("click", () => { row.count = clamp(row.count + 1); n.value = row.count; changed(); });
+    sal.addEventListener("input", () => { const v = parseInt(sal.value); if (Number.isFinite(v)) { row.salary = v; sal.classList.add("override"); changed(); } });
     sal.addEventListener("change", () => { const v = parseInt(sal.value); row.salary = Number.isFinite(v) ? v : null; sal.value = rowSalary(row); sal.classList.toggle("override", row.salary != null); changed(); });
     li.querySelector(".remove").addEventListener("click", () => { state.rows.splice(idx, 1); renderRows(); changed(); });
     list.appendChild(li);
@@ -163,6 +166,7 @@ function changed() {
   $("#people").textContent = headcount();
   $("#go").disabled = !headcount();
   writeHash();
+  renderTeams();
 }
 
 // ---------- randomise ----------
@@ -192,18 +196,34 @@ function renderTeams() {
   teams.forEach((t, i) => {
     const li = document.createElement("li");
     const people = t.state.rows.reduce((s, r) => s + r.count, 0);
-    li.innerHTML = `<button class="load"><strong></strong><span>${people} people · ${t.state.location}</span></button><button class="del" aria-label="Delete team">×</button>`;
+    const isActive = t.name === activeTeam;
+    const edited = isActive && JSON.stringify(t.state) !== JSON.stringify(state);
+    li.classList.toggle("active", isActive);
+    li.innerHTML = `<button class="load"><strong></strong><span>${people} ${people === 1 ? "person" : "people"} · ${t.state.location}${edited ? " · <em>unsaved changes</em>" : ""}</span></button>` +
+      (edited ? `<button class="update">Update</button>` : "") +
+      `<button class="del" aria-label="Delete team">×</button>`;
     li.querySelector("strong").textContent = t.name;
-    li.querySelector(".load").addEventListener("click", () => { applyState(structuredClone(t.state)); window.scrollTo({ top: 0, behavior: "smooth" }); });
-    li.querySelector(".del").addEventListener("click", () => { const all = loadTeams(); all.splice(i, 1); saveTeams(all); renderTeams(); });
+    li.querySelector(".load").addEventListener("click", () => { activeTeam = t.name; applyState(structuredClone(t.state)); window.scrollTo({ top: 0, behavior: "smooth" }); });
+    li.querySelector(".update")?.addEventListener("click", () => saveTeam(t.name));
+    li.querySelector(".del").addEventListener("click", () => { const all = loadTeams(); all.splice(i, 1); saveTeams(all); if (isActive) activeTeam = null; renderTeams(); });
     ul.appendChild(li);
   });
+}
+
+function saveTeam(name) {
+  const teams = loadTeams();
+  const snapshot = { name, state: structuredClone(state) };
+  const i = teams.findIndex((t) => t.name === name);
+  if (i >= 0) teams[i] = snapshot; else teams.unshift(snapshot);
+  saveTeams(teams);
+  activeTeam = name;
+  renderTeams();
 }
 
 // ---------- URL sharing ----------
 function writeHash() {
   const data = btoa(encodeURIComponent(JSON.stringify(state)));
-  history.replaceState(null, "", "#m=" + data);
+  try { history.replaceState(null, "", "#m=" + data); } catch {}
 }
 function readHash() {
   const m = location.hash.match(/^#m=(.+)$/);
@@ -240,16 +260,13 @@ function init() {
   $("#location").addEventListener("change", (e) => { state.location = e.target.value; renderRows(); changed(); });
   $("#mode").addEventListener("change", (e) => { state.mode = e.target.value; changed(); });
   $("#addRow").addEventListener("click", () => { state.rows.push({ role: "Software Engineer", count: 1, salary: null }); renderRows(); changed(); });
-  $("#randomise").addEventListener("click", () => applyState(randomMeeting()));
+  $("#randomise").addEventListener("click", () => { activeTeam = null; applyState(randomMeeting()); });
   $("#saveForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const name = $("#teamName").value.trim();
     if (!name) return;
-    const teams = loadTeams().filter((t) => t.name !== name);
-    teams.unshift({ name, state: structuredClone(state) });
-    saveTeams(teams);
+    saveTeam(name);
     $("#teamName").value = "";
-    renderTeams();
   });
   $("#copyResult").addEventListener("click", (e) => copy(resultSentence() + " " + location.href.split("#")[0], e.target));
   $("#copyLink").addEventListener("click", (e) => copy(location.href, e.target));
