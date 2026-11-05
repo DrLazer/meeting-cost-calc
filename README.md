@@ -2,6 +2,8 @@
 
 Watch what a meeting is really costing, live, on a car-style odometer.
 
+The home page (`index.html`) makes the case for async working; the calculator lives at `calculator.html`.
+
 Add the job titles in the room, pick a location, hit **GO**. Stop it when the meeting ends to see the total.
 
 - Random meeting on first visit, so you can just hit GO

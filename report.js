@@ -174,7 +174,7 @@ function render(st) {
     (st.mode === "salary" ? "Costs use salary only. " : "True cost adds 15% employer NI above £5,000, 5% pension and 10% overheads. ") +
     "Hourly rates assume 1,725 working hours a year.";
 
-  $("#back").href = "index.html#m=" + encode(st);
+  $("#back").href = "calculator.html#m=" + encode(st);
   return loadRates(total);
 }
 

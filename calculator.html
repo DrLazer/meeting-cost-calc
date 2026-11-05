@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meeting Cost</title>
+  <meta name="description" content="Watch what your meeting is really costing, live.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💸</text></svg>">
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1><a href="./">Meeting <span>Cost</span></a></h1>
+      <p class="tag">What is this meeting really costing?</p>
+    </header>
+
+    <section class="meter card" aria-live="polite">
+      <div class="odometer" id="odometer" aria-label="Meeting cost"></div>
+      <div class="controls">
+        <button id="go" class="btn btn-go">GO</button>
+        <button id="reset" class="btn btn-ghost" disabled>Reset</button>
+        <label class="speed">
+          <span>Speed</span>
+          <select id="speed">
+            <option value="1">Real time</option>
+            <option value="10">10×</option>
+            <option value="60">60× (1 min = 1 hr)</option>
+          </select>
+        </label>
+      </div>
+      <dl class="stats">
+        <div><dt>Elapsed</dt><dd id="elapsed">00:00</dd></div>
+        <div><dt>Per minute</dt><dd id="perMinute">£0</dd></div>
+        <div><dt>Per hour</dt><dd id="perHour">£0</dd></div>
+        <div><dt>People</dt><dd id="people">0</dd></div>
+      </dl>
+      <div id="result" class="result" hidden>
+        <p id="resultText"></p>
+        <div class="result-actions">
+          <a id="report" class="btn btn-small" href="report.html" target="_blank" rel="noopener">See full report</a>
+          <button id="copyResult" class="btn btn-small btn-ghost">Copy result</button>
+          <button id="copyLink" class="btn btn-small btn-ghost">Copy link to this result</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Who's in the meeting?</h2>
+        <button id="randomise" class="btn btn-small btn-ghost">🎲 Randomise</button>
+      </div>
+
+      <div class="settings">
+        <label>
+          <span>Location</span>
+          <select id="location"></select>
+        </label>
+        <label>
+          <span>Cost basis</span>
+          <select id="mode">
+            <option value="true">True cost (incl. NI, pension, overheads)</option>
+            <option value="salary">Salary only</option>
+          </select>
+        </label>
+      </div>
+
+      <ul id="attendees" class="attendees"></ul>
+      <button id="addRow" class="btn btn-small btn-ghost add">+ Add role</button>
+      <datalist id="roleList"></datalist>
+    </section>
+
+    <section class="card">
+      <h2>Saved teams</h2>
+      <form id="saveForm" class="save">
+        <input id="teamName" type="text" placeholder="Team name, e.g. Squad standup" maxlength="40" required>
+        <button class="btn btn-small" type="submit">Save current</button>
+      </form>
+      <ul id="teams" class="teams"></ul>
+      <p id="noTeams" class="muted">No saved teams yet. They're stored in this browser only.</p>
+    </section>
+
+    <footer class="foot muted">
+      Salaries are rough UK estimates adjusted by region. Edit any figure to match reality.
+      True cost adds 15% employer NI (above £5k), 5% pension and 10% overheads, over 1,725 working hours a year.
+    </footer>
+  </main>
+
+  <template id="rowTpl">
+    <li class="row">
+      <input class="role" type="text" list="roleList" aria-label="Job title">
+      <div class="count">
+        <button type="button" class="dec" aria-label="Fewer">−</button>
+        <input class="n" type="number" min="1" max="99" value="1" aria-label="How many">
+        <button type="button" class="inc" aria-label="More">+</button>
+      </div>
+      <label class="salary"><span>£</span><input class="sal" type="number" min="0" step="1000" aria-label="Annual salary"></label>
+      <button type="button" class="remove" aria-label="Remove">×</button>
+    </li>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
