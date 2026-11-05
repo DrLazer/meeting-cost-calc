@@ -1,8 +1,6 @@
-import {
-  ROLES, LOCATIONS, DEFAULT_SALARY,
-  EMPLOYER_NI_RATE, EMPLOYER_NI_THRESHOLD, EMPLOYER_PENSION_RATE, OVERHEAD_RATE,
-  WORKING_HOURS_PER_YEAR,
-} from "./data.js";
+import { ROLES, LOCATIONS } from "./data.js";
+import * as calc from "./calc.js";
+import { encode, readMeetingHash } from "./share.js";
 
 const $ = (s) => document.querySelector(s);
 const TEAMS_KEY = "meeting-cost:teams";
@@ -13,31 +11,14 @@ let state = { location: "UK average", mode: "true", rows: [] };
 let running = false;
 let costPence = 0;     // accumulated cost in pence
 let elapsedMs = 0;     // meeting time (scaled by speed)
+let startedAt = null;  // wall-clock time GO was first pressed
 let lastTick = 0;
 let activeTeam = null; // name of the saved team currently loaded, if any
 
-// ---------- money helpers ----------
-const gbp = (n, dp = 0) =>
-  n.toLocaleString("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: dp, maximumFractionDigits: dp });
-
-function baseSalary(role) {
-  const key = Object.keys(ROLES).find((r) => r.toLowerCase() === role.trim().toLowerCase());
-  return key ? ROLES[key] : DEFAULT_SALARY;
-}
-function rowSalary(row) {
-  if (row.salary != null) return row.salary;
-  const raw = baseSalary(row.role) * (LOCATIONS[state.location] ?? 1);
-  return Math.round(raw / 500) * 500;
-}
-function annualCost(salary) {
-  if (state.mode === "salary") return salary;
-  const ni = Math.max(0, salary - EMPLOYER_NI_THRESHOLD) * EMPLOYER_NI_RATE;
-  return salary + ni + salary * EMPLOYER_PENSION_RATE + salary * OVERHEAD_RATE;
-}
-function costPerHour() {
-  return state.rows.reduce((t, r) => t + (annualCost(rowSalary(r)) / WORKING_HOURS_PER_YEAR) * r.count, 0);
-}
-const headcount = () => state.rows.reduce((t, r) => t + r.count, 0);
+const { gbp, fmtTime } = calc;
+const rowSalary = (row) => calc.rowSalary(state, row);
+const costPerHour = () => calc.costPerHour(state);
+const headcount = () => calc.headcount(state);
 
 // ---------- odometer ----------
 const odo = $("#odometer");
@@ -86,14 +67,9 @@ function tick(now) {
   $("#elapsed").textContent = fmtTime(elapsedMs);
   requestAnimationFrame(tick);
 }
-function fmtTime(ms) {
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-  const pad = (n) => String(n).padStart(2, "0");
-  return h ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
-}
 function start() {
   if (!headcount()) return;
+  if (!elapsedMs) startedAt = Date.now();
   running = true;
   lastTick = performance.now();
   $("#go").textContent = "STOP";
@@ -114,6 +90,7 @@ function stop() {
 function reset() {
   costPence = 0;
   elapsedMs = 0;
+  startedAt = null;
   renderOdometer(0);
   $("#elapsed").textContent = "00:00";
   $("#result").hidden = true;
@@ -125,10 +102,11 @@ function resultSentence() {
 }
 function showResult() {
   if (!costPence) return;
-  const perYear = (costPence / 100) * 52;
+  const perYear = (costPence / 100) * 46; // working weeks
   $("#resultText").innerHTML =
     `<strong>${gbp(costPence / 100, 2)}</strong> over ${fmtTime(elapsedMs)}.` +
     `<span>Held weekly, that's about ${gbp(perYear)} a year.</span>`;
+  $("#report").href = "report.html#" + meetingUrl(true).split("#")[1];
   $("#result").hidden = false;
 }
 
@@ -221,37 +199,14 @@ function saveTeam(name) {
 }
 
 // ---------- URL sharing ----------
-// Links are base64url-encoded JSON. A shared result also carries
-// r: { c: cost in pence, t: elapsed ms }.
-function encode(obj) {
-  const bytes = new TextEncoder().encode(JSON.stringify(obj));
-  let bin = "";
-  bytes.forEach((b) => (bin += String.fromCharCode(b)));
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-function decode(str) {
-  // Current format first, then the original btoa(encodeURIComponent(json)) links.
-  try {
-    const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
-  } catch {}
-  try { return JSON.parse(decodeURIComponent(atob(str))); } catch {}
-  return null;
-}
 function meetingUrl(withResult) {
   const data = withResult && costPence
-    ? { ...state, r: { c: Math.round(costPence), t: Math.round(elapsedMs) } }
+    ? { ...state, r: { c: Math.round(costPence), t: Math.round(elapsedMs), ...(startedAt ? { s: startedAt } : {}) } }
     : state;
   return location.href.split("#")[0] + "#m=" + encode(data);
 }
 function writeHash() {
   try { history.replaceState(null, "", "#m=" + encode(state)); } catch {}
-}
-function readHash() {
-  const m = location.hash.match(/^#m=(.+)$/);
-  if (!m) return null;
-  const s = decode(decodeURIComponent(m[1]));
-  return s && Array.isArray(s.rows) ? s : null;
 }
 
 // ---------- wiring ----------
@@ -290,12 +245,13 @@ function init() {
   $("#copyResult").addEventListener("click", (e) => copy(resultSentence() + " " + meetingUrl(true), e.target));
   $("#copyLink").addEventListener("click", (e) => copy(meetingUrl(true), e.target));
 
-  const shared = readHash();
+  const shared = readMeetingHash();
   applyState(shared || randomMeeting());
   if (shared?.r?.c > 0) {
     // Opened from a shared result: show the finished meeting.
     costPence = shared.r.c;
     elapsedMs = Math.max(0, shared.r.t || 0);
+    startedAt = shared.r.s || null;
     renderOdometer(costPence);
     $("#elapsed").textContent = fmtTime(elapsedMs);
     $("#reset").disabled = false;

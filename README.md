@@ -9,6 +9,7 @@ Add the job titles in the room, pick a location, hit **GO**. Stop it when the me
 - "True cost" mode adds employer NI, pension and overheads
 - Save teams in your browser for quick reuse
 - Share a meeting via its URL
+- Full meeting report: an itemised receipt with USD and BTC conversions, cost by role, what you'd save with a shorter meeting, yearly cost if it recurs, and what else the money could have bought
 
 Plain HTML, CSS and JS with no build step. Deployed to GitHub Pages on push to `main`.
 

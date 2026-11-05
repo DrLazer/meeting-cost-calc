@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meeting Report</title>
+  <meta name="description" content="The full bill for a meeting: who was there, what it cost, and what else that money could have done.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="report.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
+</head>
+<body>
+  <main class="page">
+    <nav class="bar">
+      <a id="back" class="link" href="index.html">← Back to the calculator</a>
+      <div class="bar-actions">
+        <button id="copy" class="btn btn-ghost">Copy report link</button>
+        <button id="print" class="btn btn-ghost">Print</button>
+      </div>
+    </nav>
+
+    <div id="empty" class="empty" hidden>
+      <h1>No meeting to report on</h1>
+      <p>Run a meeting in the calculator, press STOP, then choose <strong>See full report</strong>.</p>
+      <a class="btn" href="index.html">Open the calculator</a>
+    </div>
+
+    <div id="report" class="layout" hidden>
+      <aside class="receipt-col">
+        <div class="slot" aria-hidden="true"></div>
+        <article class="receipt" id="receipt" aria-label="Meeting receipt">
+          <header class="r-head">
+            <div class="r-brand">MEETING COST</div>
+            <div class="r-sub">Itemised bill for one meeting</div>
+            <div class="r-meta" id="meta"></div>
+          </header>
+          <div class="r-rule"></div>
+          <ul class="r-items" id="items"></ul>
+          <div class="r-rule"></div>
+          <dl class="r-sums" id="sums"></dl>
+          <div class="r-rule double"></div>
+          <div class="r-total">
+            <span>TOTAL</span>
+            <strong id="total"></strong>
+          </div>
+          <dl class="r-fx" id="fx"></dl>
+          <p class="r-fx-note" id="fxNote">Fetching live exchange rates…</p>
+          <div class="r-rule"></div>
+          <p class="r-thanks">Thank you for meeting.<br>Please consider an email next time.</p>
+          <div class="r-barcode" id="barcode" aria-hidden="true"></div>
+          <div class="r-no" id="receiptNo"></div>
+        </article>
+      </aside>
+
+      <div class="content">
+        <section class="headline">
+          <p class="lede" id="lede"></p>
+          <div class="kpis" id="kpis"></div>
+        </section>
+
+        <section class="block">
+          <h2>Where the money went</h2>
+          <p class="hint">Share of the bill by role. Hover or tap a bar for the detail.</p>
+          <div class="chart" id="chart" role="list"></div>
+          <div class="tooltip" id="tooltip" role="status" hidden></div>
+        </section>
+
+        <section class="block">
+          <h2>If it had been shorter</h2>
+          <ul class="savings" id="savings"></ul>
+        </section>
+
+        <section class="block">
+          <h2>If it happens every…</h2>
+          <div class="recurring" id="recurring"></div>
+          <p class="hint">Based on 46 working weeks a year.</p>
+        </section>
+
+        <section class="block">
+          <h2>What that money could have bought</h2>
+          <ul class="instead" id="instead"></ul>
+          <p class="hint">Rough UK prices. People-time is costed with the same assumptions as the meeting.</p>
+        </section>
+
+        <footer class="foot" id="assumptions"></footer>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="report.js"></script>
+</body>
+</html>
