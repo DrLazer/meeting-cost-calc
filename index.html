@@ -14,7 +14,13 @@
 <body>
   <header class="nav">
     <a class="brand" href="./">Meeting <span>Cost</span></a>
-    <a class="btn btn-small" href="calculator.html">Start the meter</a>
+    <div class="nav-right">
+      <div class="region" id="region" role="group" aria-label="Show prices for">
+        <button type="button" data-cc="UK" aria-pressed="true">£ UK</button>
+        <button type="button" data-cc="US" aria-pressed="false">$ US</button>
+      </div>
+      <a class="btn btn-small" href="calculator.html">Start the meter</a>
+    </div>
   </header>
 
   <main>
@@ -284,7 +290,7 @@
           <ul class="mini-rows" id="miniRows"></ul>
           <div class="mini-controls">
             <span class="mini-go">STOP</span>
-            <span class="mini-chip">Manchester</span>
+            <span class="mini-chip" id="miniPlace">Manchester</span>
             <span class="mini-chip">True cost</span>
           </div>
         </div>
@@ -297,7 +303,7 @@
           <ul class="ticks">
             <li>Cost broken down by role</li>
             <li>What it adds up to over a year if it recurs</li>
-            <li>What else the money could have bought (a lot of sausage rolls, usually)</li>
+            <li>What else the money could have bought (a lot of <span data-uk="sausage rolls" data-us="Costco hot dogs">sausage rolls</span>, usually)</li>
           </ul>
         </div>
         <div class="demo demo-report" aria-hidden="true">
@@ -339,7 +345,7 @@
   </main>
 
   <footer class="foot">
-    <p>Salaries are rough UK estimates for each role, adjusted by city. Every figure can be edited in the calculator.</p>
+    <p>Salaries are rough UK and US estimates for each role, adjusted by city. Every figure can be edited in the calculator.</p>
     <p><a class="link" href="https://github.com/DrLazer/meeting-cost-calc">Source code on GitHub</a></p>
   </footer>
 
