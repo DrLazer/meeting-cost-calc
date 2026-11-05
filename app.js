@@ -1,15 +1,16 @@
-import { ROLES, LOCATIONS } from "./data.js";
+import { COUNTRIES, LOCATIONS } from "./data.js";
 import * as calc from "./calc.js";
 import { encode, readMeetingHash } from "./share.js";
 
 const $ = (s) => document.querySelector(s);
 const TEAMS_KEY = "meeting-cost:teams";
-const DIGITS = 8; // 6 pound digits + 2 pence digits
+const PLACE_KEY = "meeting-cost:location";
+const DIGITS = 8; // 6 whole-unit digits + 2 for pence/cents
 
 // ---------- state ----------
 let state = { location: "UK average", mode: "true", rows: [] };
 let running = false;
-let costPence = 0;     // accumulated cost in pence
+let costPence = 0;     // accumulated cost in pence/cents of the meeting's currency
 let elapsedMs = 0;     // meeting time (scaled by speed)
 let startedAt = null;  // wall-clock time GO was first pressed
 let lastTick = 0;
@@ -18,7 +19,9 @@ let planMode = false;  // "Plan ahead": cost a meeting from its length, no meter
 let planMins = 30;
 let shownPence = 0;    // what the odometer currently shows
 
-const { gbp, fmtTime } = calc;
+const { fmtTime } = calc;
+const money = (n, dp) => calc.money(state, n, dp);
+const country = () => calc.country(state);
 const rowSalary = (row) => calc.rowSalary(state, row);
 const costPerHour = () => calc.costPerHour(state);
 const headcount = () => calc.headcount(state);
@@ -104,14 +107,14 @@ function reset() {
 }
 function resultSentence() {
   const mins = Math.max(1, Math.round(elapsedMs / 60000));
-  return `This ${mins}-minute meeting with ${headcount()} ${headcount() === 1 ? "person" : "people"} cost ${gbp(costPence / 100, 2)}.`;
+  return `This ${mins}-minute meeting with ${headcount()} ${headcount() === 1 ? "person" : "people"} cost ${money(costPence / 100, 2)}.`;
 }
 function showResult() {
   if (!costPence) return;
-  const perYear = (costPence / 100) * 46; // working weeks
+  const perYear = (costPence / 100) * calc.weeksPerYear(state);
   $("#resultText").innerHTML =
-    `<strong>${gbp(costPence / 100, 2)}</strong> over ${fmtTime(elapsedMs)}.` +
-    `<span>Held weekly, that's about ${gbp(perYear)} a year.</span>`;
+    `<strong>${money(costPence / 100, 2)}</strong> over ${fmtTime(elapsedMs)}.` +
+    `<span>Held weekly, that's about ${money(perYear)} a year.</span>`;
   $("#report").href = "report.html#" + meetingUrl(true).split("#")[1];
   $("#result").hidden = false;
 }
@@ -125,6 +128,7 @@ function renderRows() {
     const role = li.querySelector(".role");
     const n = li.querySelector(".n");
     const sal = li.querySelector(".sal");
+    li.querySelector(".salary span").textContent = country().symbol;
     role.value = row.role;
     n.value = row.count;
     sal.value = rowSalary(row);
@@ -145,8 +149,8 @@ const clamp = (n) => Math.min(99, Math.max(1, n));
 
 function changed() {
   const ph = costPerHour();
-  $("#perHour").textContent = gbp(ph);
-  $("#perMinute").textContent = gbp(ph / 60, 2);
+  $("#perHour").textContent = money(ph);
+  $("#perMinute").textContent = money(ph / 60, 2);
   $("#people").textContent = headcount();
   $("#go").disabled = !headcount();
   writeHash();
@@ -184,7 +188,7 @@ function updatePlan() {
   document.querySelectorAll(".chip[data-mins]").forEach((c) => c.setAttribute("aria-pressed", String(Number(c.dataset.mins) === planMins)));
   const start = $("#planStart").value ? new Date($("#planStart").value).getTime() : null;
   const link = $("#planReport");
-  link.href = "report.html#m=" + encode({ ...state, r: { c: planCostPence(), t: planMins * 60000, ...(start ? { s: start } : {}), p: 1 } });
+  link.href = "report.html#m=" + encode({ ...state, r: { c: planCostPence(), u: country().currency, t: planMins * 60000, ...(start ? { s: start } : {}), p: 1 } });
   link.classList.toggle("disabled", !headcount());
   link.setAttribute("aria-disabled", String(!headcount()));
 }
@@ -210,14 +214,56 @@ function setMode(plan) {
 
 // ---------- randomise ----------
 function randomMeeting() {
-  const roles = Object.keys(ROLES).filter((r) => !["CEO", "CTO", "Graduate / Intern"].includes(r));
+  const location = homeLocation();
+  const roles = Object.keys(COUNTRIES[LOCATIONS[location].country].roles).filter((r) => !["CEO", "CTO", "Graduate / Intern"].includes(r));
   const shuffled = roles.sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 4));
-  const locs = Object.keys(LOCATIONS);
   return {
-    location: locs[Math.floor(Math.random() * locs.length)],
+    location,
     mode: "true",
     rows: shuffled.map((role, i) => ({ role, count: i === 0 ? 1 + Math.floor(Math.random() * 3) : 1, salary: null })),
   };
+}
+
+// ---------- where you are ----------
+// Your chosen place wins; otherwise a guess from the time zone (UK or US average).
+function homeLocation() {
+  try { const saved = localStorage.getItem(PLACE_KEY); if (LOCATIONS[saved]) return saved; } catch {}
+  return calc.locationFromTimeZone();
+}
+function rememberLocation(name) {
+  try { localStorage.setItem(PLACE_KEY, name); } catch {}
+}
+function setLocation(name) {
+  const before = calc.countryCode(state);
+  state.location = name;
+  $("#location").value = name;
+  // A meeting's cost is in its own currency, so moving it to another country starts the meter again.
+  if (calc.countryCode(state) !== before) { if (running) stop(); reset(); }
+  renderPlaceUi();
+  renderRows();
+  changed();
+}
+function renderPlaceUi() {
+  const c = country();
+  odo.querySelector(".cur").textContent = c.symbol;
+  $("#roleList").innerHTML = Object.keys(c.roles).map((r) => `<option value="${r}">`).join("");
+  $("#costNote").textContent = `True cost adds ${c.onCostNote}, over ${c.hoursNote}.`;
+}
+function locateMe() {
+  const status = $("#nearStatus");
+  if (!navigator.geolocation) { status.textContent = "Your browser can't share its location."; return; }
+  status.textContent = "Finding you…";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const name = calc.nearestLocation(pos.coords.latitude, pos.coords.longitude);
+      if (!name) { status.textContent = "Only UK and US cities are covered so far. Pick the closest one."; return; }
+      rememberLocation(name);
+      setLocation(name);
+      status.textContent = `Set to ${name}.`;
+    },
+    () => { status.textContent = "Couldn't get your location. Pick a city instead."; },
+    { maximumAge: 600000, timeout: 10000 },
+  );
 }
 
 // ---------- teams (localStorage) ----------
@@ -262,7 +308,7 @@ function saveTeam(name) {
 // ---------- URL sharing ----------
 function meetingUrl(withResult) {
   const data = withResult && costPence
-    ? { ...state, r: { c: Math.round(costPence), t: Math.round(elapsedMs), ...(startedAt ? { s: startedAt } : {}) } }
+    ? { ...state, r: { c: Math.round(costPence), u: country().currency, t: Math.round(elapsedMs), ...(startedAt ? { s: startedAt } : {}) } }
     : state;
   return location.href.split("#")[0] + "#m=" + encode(data);
 }
@@ -272,8 +318,9 @@ function writeHash() {
 
 // ---------- wiring ----------
 function applyState(s) {
-  state = { location: LOCATIONS[s.location] ? s.location : "UK average", mode: s.mode === "salary" ? "salary" : "true", rows: s.rows };
+  state = { location: LOCATIONS[s.location] ? s.location : homeLocation(), mode: s.mode === "salary" ? "salary" : "true", rows: s.rows };
   $("#location").value = state.location;
+  renderPlaceUi();
   $("#mode").value = state.mode;
   if (!running) reset();
   renderRows();
@@ -287,12 +334,13 @@ async function copy(text, btn) {
 function init() {
   buildOdometer();
   renderOdometer(0);
-  $("#location").innerHTML = Object.keys(LOCATIONS).map((l) => `<option>${l}</option>`).join("");
-  $("#roleList").innerHTML = Object.keys(ROLES).map((r) => `<option value="${r}">`).join("");
+  $("#location").innerHTML = Object.values(COUNTRIES).map((c) =>
+    `<optgroup label="${c.name}">${Object.keys(c.cities).map((l) => `<option>${l}</option>`).join("")}</optgroup>`).join("");
 
   $("#go").addEventListener("click", () => (running ? stop() : start()));
   $("#reset").addEventListener("click", reset);
-  $("#location").addEventListener("change", (e) => { state.location = e.target.value; renderRows(); changed(); });
+  $("#location").addEventListener("change", (e) => { rememberLocation(e.target.value); setLocation(e.target.value); $("#nearStatus").textContent = ""; });
+  $("#nearMe").addEventListener("click", locateMe);
   $("#mode").addEventListener("change", (e) => { state.mode = e.target.value; changed(); });
   $("#addRow").addEventListener("click", () => { state.rows.push({ role: "Software Engineer", count: 1, salary: null }); renderRows(); changed(); });
   $("#randomise").addEventListener("click", () => { activeTeam = null; applyState(randomMeeting()); });

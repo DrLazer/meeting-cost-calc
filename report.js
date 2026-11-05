@@ -1,34 +1,57 @@
-import { LOCATIONS } from "./data.js";
+import { COUNTRIES, LOCATIONS } from "./data.js";
 import * as calc from "./calc.js";
 import { encode, readMeetingHash } from "./share.js";
 
 const $ = (s) => document.querySelector(s);
-const { gbp, fmtTime } = calc;
+const { fmtTime, formatMoney } = calc;
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const money = (n) => gbp(n, n < 1000 ? 2 : 0);
-const plural = (n, one, many = one + "s") => `${n.toLocaleString("en-GB")} ${n === 1 ? one : many}`;
 
-const WEEKS = 46; // working weeks a year, matching WORKING_HOURS_PER_YEAR
-
-// Rough UK prices. `per` is a function for items costed from the meeting's own data.
-const THINGS = [
-  { icon: "🥐", one: "sausage roll", price: 1.4 },
-  { icon: "☕", one: "flat white", price: 3.6 },
-  { icon: "🍺", one: "pint", price: 5.5 },
-  { icon: "📚", one: "paperback", price: 10 },
-  { icon: "🎟️", one: "cinema ticket", price: 12 },
-  { icon: "🍕", one: "takeaway pizza", price: 18 },
-  { icon: "☁️", one: "month of a small cloud server", many: "months of a small cloud server", price: 25 },
-  { icon: "🧪", one: "user research participant thanked with a £40 voucher", many: "user research participants thanked with a £40 voucher", price: 40 },
-  { icon: "🧑‍💻", one: "hour of a graduate developer's time", many: "hours of a graduate developer's time", people: { role: "Graduate / Intern", hours: 1 } },
-  { icon: "🧑‍🔧", one: "day of a senior engineer's time", many: "days of a senior engineer's time", people: { role: "Senior Software Engineer", hours: 7.5 } },
-  { icon: "✈️", one: "return flight to Amsterdam", many: "return flights to Amsterdam", price: 120 },
-  { icon: "⌨️", one: "mechanical keyboard", price: 120 },
-  { icon: "🎧", one: "pair of noise-cancelling headphones", many: "pairs of noise-cancelling headphones", price: 300 },
-  { icon: "🎤", one: "conference ticket", price: 500 },
-  { icon: "💻", one: "MacBook Air", price: 999 },
-  { icon: "🏕️", one: "team away day", price: 2500 },
-];
+// What the meeting's money could have bought, in each country's own prices.
+// Items with `people` are costed from the meeting's own salary assumptions.
+const THINGS = {
+  UK: {
+    none: "Not quite enough for a sausage roll. Short and sweet.",
+    items: [
+      { icon: "🥐", one: "sausage roll", price: 1.4 },
+      { icon: "☕", one: "flat white", price: 3.6 },
+      { icon: "🍺", one: "pint", price: 5.5 },
+      { icon: "📚", one: "paperback", price: 10 },
+      { icon: "🎟️", one: "cinema ticket", price: 12 },
+      { icon: "🍕", one: "takeaway pizza", price: 18 },
+      { icon: "☁️", one: "month of a small cloud server", many: "months of a small cloud server", price: 25 },
+      { icon: "🧪", one: "user research participant thanked with a £40 voucher", many: "user research participants thanked with a £40 voucher", price: 40 },
+      { icon: "🧑‍💻", one: "hour of a graduate developer's time", many: "hours of a graduate developer's time", people: { role: "Graduate / Intern", days: 0 } },
+      { icon: "🧑‍🔧", one: "day of a senior engineer's time", many: "days of a senior engineer's time", people: { role: "Senior Software Engineer", days: 1 } },
+      { icon: "✈️", one: "return flight to Amsterdam", many: "return flights to Amsterdam", price: 120 },
+      { icon: "⌨️", one: "mechanical keyboard", price: 120 },
+      { icon: "🎧", one: "pair of noise-cancelling headphones", many: "pairs of noise-cancelling headphones", price: 300 },
+      { icon: "🎤", one: "conference ticket", price: 500 },
+      { icon: "💻", one: "MacBook Air", price: 999 },
+      { icon: "🏕️", one: "team away day", price: 2500 },
+    ],
+  },
+  US: {
+    none: "Not quite enough for a Costco hot dog. Short and sweet.",
+    items: [
+      { icon: "🌭", one: "Costco hot dog and soda", many: "Costco hot dogs and sodas", price: 1.5 },
+      { icon: "☕", one: "latte", price: 5.75 },
+      { icon: "🍺", one: "craft beer", price: 8 },
+      { icon: "🎟️", one: "movie ticket", price: 16 },
+      { icon: "📚", one: "paperback", price: 18 },
+      { icon: "🍕", one: "large pizza", price: 22 },
+      { icon: "☁️", one: "month of a small cloud server", many: "months of a small cloud server", price: 30 },
+      { icon: "🧪", one: "user research participant thanked with a $50 gift card", many: "user research participants thanked with a $50 gift card", price: 50 },
+      { icon: "🧑‍💻", one: "hour of an entry-level developer's time", many: "hours of an entry-level developer's time", people: { role: "Graduate / Intern", days: 0 } },
+      { icon: "🧑‍🔧", one: "day of a senior engineer's time", many: "days of a senior engineer's time", people: { role: "Senior Software Engineer", days: 1 } },
+      { icon: "⌨️", one: "mechanical keyboard", price: 150 },
+      { icon: "✈️", one: "domestic round-trip flight", many: "domestic round-trip flights", price: 350 },
+      { icon: "🎧", one: "pair of noise-cancelling headphones", many: "pairs of noise-cancelling headphones", price: 350 },
+      { icon: "🎤", one: "conference ticket", price: 800 },
+      { icon: "💻", one: "MacBook Air", price: 999 },
+      { icon: "🏕️", one: "team offsite", price: 4000 },
+    ],
+  },
+};
 
 function receiptNumber(str) {
   let h = 2166136261;
@@ -47,68 +70,87 @@ function barcode(seed) {
   return `linear-gradient(90deg, ${stops.join(",")})`;
 }
 
-function render(st) {
-  const r = st.r;
-  const planned = !!r.p; // costed ahead of time from its length, not metered
-  const total = r.c / 100;
-  const ms = Math.max(1000, r.t || 0);
-  const mins = ms / 60000;
-  const perMs = total / ms;
-  const people = calc.headcount(st);
-  const hourly = calc.costPerHour(st);
-  const place = LOCATIONS[st.location] ? st.location : "UK average";
+// ---------- the meeting ----------
+let m = null;        // everything worked out about the meeting
+let view = null;     // currency the report body is shown in
+let rates = null;    // live rates from the meeting's currency, e.g. { USD: 1.31, BTC: 0.0000118 }
 
+function compute(st) {
+  const r = st.r;
+  const c = calc.country(st);
+  const ms = Math.max(1000, r.t || 0);
+  const total = r.c / 100;
+  const hourly = calc.costPerHour(st);
   const rows = st.rows.map((row) => {
     const each = calc.hourlyRate(st, row);
     const share = hourly ? (each * row.count) / hourly : 0;
     return { ...row, each, salary: calc.rowSalary(st, row), share, cost: total * share };
   }).sort((a, b) => b.cost - a.cost);
+  return {
+    st, c, rows, total, ms, hourly,
+    cur: r.u || c.currency, // the currency it was recorded in, for good
+    countryCode: calc.countryCode(st),
+    planned: !!r.p, // costed ahead of time from its length, not metered
+    mins: ms / 60000,
+    people: calc.headcount(st),
+    place: LOCATIONS[st.location] ? st.location : c.average,
+    start: r.s ? new Date(r.s) : null,
+    end: r.s ? new Date(r.s + ms) : null,
+  };
+}
+const native = (n, dp = 0) => formatMoney(n, m.cur, dp);
+/** An amount in the currency the reader has chosen to view the report in. */
+const shown = (n, dp = 0) => (view === m.cur || !rates?.[view] ? native(n, dp) : formatMoney(n * rates[view], view, dp));
+const plural = (n, one, many = one + "s") => `${n.toLocaleString(m.c.locale)} ${n === 1 ? one : many}`;
+const time = (d) => d.toLocaleTimeString(m.c.locale, { hour: "numeric", minute: "2-digit" });
 
-  const start = r.s ? new Date(r.s) : null;
-  const end = start ? new Date(r.s + ms) : null;
-  const time = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const minsLabel = mins < 1 ? `${Math.round(ms / 1000)}-second` : `${Math.round(mins)}-minute`;
-
-  document.title = planned ? `${money(total)} meeting estimate · Meeting Report` : `${money(total)} meeting · Meeting Report`;
+function renderReceipt() {
+  const { st, rows, total, ms, mins, people, hourly, place, start, end, planned } = m;
+  const no = receiptNumber(window.location.hash || JSON.stringify(st));
+  const price = (n) => native(n, n < 1000 ? 2 : 0);
+  document.title = planned ? `${price(total)} meeting estimate · Meeting Report` : `${price(total)} meeting · Meeting Report`;
   if (planned) {
     $("#rSub").textContent = "Estimate for a planned meeting";
     $("#rThanks").innerHTML = "There's still time to<br>send an email instead.";
     $("#hShorter").textContent = "If it were shorter";
     $("#hInstead").textContent = "What that money could buy";
   }
-
-  // ---- receipt ----
-  const no = receiptNumber(window.location.hash || JSON.stringify(st));
   $("#meta").innerHTML = [
-    start ? `<div><span>Date</span><span>${start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</span></div>` : "",
+    start ? `<div><span>Date</span><span>${start.toLocaleDateString(m.c.locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</span></div>` : "",
     start ? `<div><span>Time</span><span>${time(start)} – ${time(end)}</span></div>` : "",
     `<div><span>Duration</span><span>${fmtTime(ms)}</span></div>`,
     `<div><span>Location</span><span>${esc(place)}</span></div>`,
   ].join("");
   $("#items").innerHTML = rows.map((row) => `
     <li>
-      <div class="r-line"><span>${row.count} × ${esc(row.role)}</span><span>${gbp(row.cost, 2)}</span></div>
-      <div class="r-detail">@ ${gbp(row.each, 2)}/hr each · ${gbp(row.salary)} salary</div>
+      <div class="r-line"><span>${row.count} × ${esc(row.role)}</span><span>${native(row.cost, 2)}</span></div>
+      <div class="r-detail">@ ${native(row.each, 2)}/hr each · ${native(row.salary)} salary</div>
     </li>`).join("");
   $("#sums").innerHTML = [
     ["People", people],
-    ["Per minute", gbp(total / mins, 2)],
-    ["Per hour", gbp(hourly, 2)],
-    ["Per person", gbp(total / people, 2)],
+    ["Per minute", native(total / mins, 2)],
+    ["Per hour", native(hourly, 2)],
+    ["Per person", native(total / people, 2)],
     ["Cost basis", st.mode === "salary" ? "Salary only" : "True cost"],
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
-  $("#total").textContent = gbp(total, 2);
+  $("#total").textContent = native(total, 2);
   $("#receiptNo").textContent = `No. ${no}`;
   $("#barcode").style.backgroundImage = barcode(no);
+}
+
+function renderBody() {
+  const { st, c, rows, total, ms, mins, people, hourly, place, start, planned } = m;
+  const perMs = total / ms;
+  const minsLabel = mins < 1 ? `${Math.round(ms / 1000)}-second` : `${Math.round(mins)}-minute`;
 
   // ---- headline ----
   $("#lede").innerHTML =
-    `This ${minsLabel} meeting of ${plural(people, "person", "people")} in ${esc(place)} ${planned ? "will cost" : "cost"} <strong>${gbp(total, 2)}</strong>` +
-    (start ? `, starting at ${time(start)} on ${start.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.` : ".");
+    `This ${minsLabel} meeting of ${plural(people, "person", "people")} in ${esc(place)} ${planned ? "will cost" : "cost"} <strong>${shown(total, 2)}</strong>` +
+    (start ? `, starting at ${time(start)} on ${start.toLocaleDateString(c.locale, { weekday: "long", day: "numeric", month: "long" })}.` : ".");
   $("#kpis").innerHTML = [
-    [gbp(total / mins, 2), "every minute"],
-    [gbp(total / people, 2), "per person"],
-    [gbp(hourly), "per hour at this size"],
+    [shown(total / mins, 2), "every minute"],
+    [shown(total / people, 2), "per person"],
+    [shown(hourly), "per hour at this size"],
   ].map(([v, k]) => `<div class="kpi"><strong>${v}</strong><span>${k}</span></div>`).join("");
 
   // ---- chart ----
@@ -117,14 +159,14 @@ function render(st) {
     <div class="c-row" role="listitem" tabindex="0" data-i="${i}">
       <span class="c-label">${esc(row.role)}${row.count > 1 ? ` <em>× ${row.count}</em>` : ""}</span>
       <span class="c-track"><span class="c-bar" style="--w:${(row.cost / maxCost) * 100}%"></span></span>
-      <span class="c-value">${gbp(row.cost, 2)}</span>
+      <span class="c-value">${shown(row.cost, 2)}</span>
     </div>`).join("");
   const tip = $("#tooltip");
   const showTip = (el, x, y) => {
     const row = rows[el.dataset.i];
     tip.innerHTML = `<strong>${esc(row.role)}${row.count > 1 ? ` × ${row.count}` : ""}</strong>` +
-      `<span>${gbp(row.cost, 2)} · ${Math.round(row.share * 100)}% of the bill</span>` +
-      `<span>${gbp(row.each, 2)} an hour each</span>`;
+      `<span>${shown(row.cost, 2)} · ${Math.round(row.share * 100)}% of the bill</span>` +
+      `<span>${shown(row.each, 2)} an hour each</span>`;
     tip.hidden = false;
     const box = tip.parentElement.getBoundingClientRect();
     const tx = Math.min(Math.max(x - box.left + 12, 0), box.width - tip.offsetWidth);
@@ -154,56 +196,76 @@ function render(st) {
     <li>
       <span class="s-label">${esc(label)}</span>
       <span class="s-meter" aria-hidden="true"><span style="--w:${Math.min(100, (saved / total) * 100)}%"></span></span>
-      <span class="s-value"><strong>${gbp(saved, 2)}</strong> saved</span>
+      <span class="s-value"><strong>${shown(saved, 2)}</strong> saved</span>
     </li>`).join("");
 
   // ---- recurring ----
+  const weeks = calc.weeksPerYear(st);
   $("#recurring").innerHTML = [
-    ["Working day", WEEKS * 5],
-    ["Week", WEEKS],
-    ["Fortnight", WEEKS / 2],
+    ["Working day", weeks * 5],
+    ["Week", weeks],
+    ["Fortnight", weeks / 2],
     ["Month", 12],
-  ].map(([k, n]) => `<div class="kpi"><strong>${gbp(total * n)}</strong><span>a year if held every ${k.toLowerCase()}</span></div>`).join("");
+  ].map(([k, n]) => `<div class="kpi"><strong>${shown(total * n)}</strong><span>a year if held every ${k.toLowerCase()}</span></div>`).join("");
+  $("#recurNote").textContent = `Based on ${Math.round(weeks)} working weeks a year.`;
 
-  // ---- instead ----
-  const priced = THINGS.map((t) => {
+  // ---- instead (always counted in the meeting's own prices) ----
+  const things = THINGS[m.countryCode] || THINGS.UK;
+  const priced = things.items.map((t) => {
     const price = t.people
-      ? calc.hourlyRate(st, { role: t.people.role, count: 1, salary: null }) * t.people.hours
+      ? calc.hourlyRate(st, { role: t.people.role, count: 1, salary: null }) * (t.people.days ? (c.weekHours / 5) * t.people.days : 1)
       : t.price;
     return { ...t, price, n: Math.floor(total / price) };
   }).filter((t) => t.n >= 1).sort((a, b) => b.price - a.price).slice(0, 6);
   $("#instead").innerHTML = priced.length
-    ? priced.map((t) => `<li><span class="i-icon" aria-hidden="true">${t.icon}</span><span class="i-n">${t.n.toLocaleString("en-GB")}</span><span class="i-what">${esc(t.n === 1 ? t.one : (t.many || t.one + "s"))}</span></li>`).join("")
-    : `<li class="i-none">Not quite enough for a sausage roll. Short and sweet.</li>`;
+    ? priced.map((t) => `<li><span class="i-icon" aria-hidden="true">${t.icon}</span><span class="i-n">${t.n.toLocaleString(c.locale)}</span><span class="i-what">${esc(t.n === 1 ? t.one : (t.many || t.one + "s"))}</span></li>`).join("")
+    : `<li class="i-none">${things.none}</li>`;
+  $("#insteadNote").textContent = `Rough ${m.countryCode === "US" ? "US" : "UK"} prices. People-time is costed with the same assumptions as the meeting.`;
 
   $("#assumptions").textContent =
-    "Salaries are rough UK estimates for each role, adjusted for location. " +
-    (st.mode === "salary" ? "Costs use salary only. " : "True cost adds 15% employer NI above £5,000, 5% pension and 10% overheads. ") +
-    "Hourly rates assume 1,725 working hours a year.";
-
-  $("#back").href = "calculator.html#m=" + encode(st);
-  return loadRates(total);
+    `Salaries are rough estimates for each role in the ${c.name === "United States" ? "US" : "UK"}, adjusted by city. ` +
+    (st.mode === "salary" ? "Costs use salary only. " : `True cost adds ${c.onCostNote}. `) +
+    `Hourly rates assume ${c.hoursNote}.` +
+    (view !== m.cur && rates ? ` Converted from ${m.cur} at live Coinbase rates; the meeting itself is recorded in ${m.cur}.` : "");
 }
 
-async function loadRates(total) {
-  const fx = $("#fx"), note = $("#fxNote");
+// ---------- show in another currency ----------
+function renderSwitch() {
+  const others = [m.cur === "USD" ? "GBP" : "USD", "BTC"];
+  const label = { GBP: "£ GBP", USD: "$ USD", BTC: "₿ BTC" };
+  $("#curSwitch").innerHTML = [m.cur, ...others].map((code) =>
+    `<button type="button" data-cur="${code}" aria-pressed="${code === view}" ${code !== m.cur && !rates ? "disabled" : ""}>${label[code]}</button>`).join("");
+  $("#curSwitch").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    view = b.dataset.cur;
+    renderSwitch();
+    renderBody();
+  }));
+}
+async function loadRates() {
+  const note = $("#curNote");
   try {
-    const res = await fetch("https://api.coinbase.com/v2/exchange-rates?currency=GBP");
+    const res = await fetch(`https://api.coinbase.com/v2/exchange-rates?currency=${m.cur}`);
     if (!res.ok) throw new Error(res.status);
     const { data } = await res.json();
-    const usd = total * Number(data.rates.USD);
-    const btc = total * Number(data.rates.BTC);
-    if (!Number.isFinite(usd) || !Number.isFinite(btc)) throw new Error("bad rates");
-    const sats = Math.round(btc * 1e8);
-    fx.innerHTML =
-      `<div><dt>USD</dt><dd>${usd.toLocaleString("en-US", { style: "currency", currency: "USD" })}</dd></div>` +
-      `<div><dt>BTC</dt><dd>₿${btc.toFixed(8)}</dd></div>` +
-      `<div class="sats"><dt></dt><dd>${sats.toLocaleString("en-GB")} sats</dd></div>`;
-    note.textContent = `Live rates from Coinbase, ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+    const next = {};
+    for (const code of ["GBP", "USD", "BTC"]) if (code !== m.cur) next[code] = Number(data.rates[code]);
+    if (!Object.values(next).every(Number.isFinite)) throw new Error("bad rates");
+    rates = next;
+    note.textContent = `Recorded in ${m.cur}. Other currencies use live Coinbase rates from ${new Date().toLocaleTimeString(m.c.locale, { hour: "numeric", minute: "2-digit" })}.`;
   } catch {
-    fx.innerHTML = "";
-    note.textContent = "USD and BTC rates are unavailable right now. Refresh to try again.";
+    note.textContent = `Recorded in ${m.cur}. Other currencies are unavailable right now.`;
   }
+  renderSwitch();
+}
+
+function render(st) {
+  m = compute(st);
+  view = m.cur;
+  renderReceipt();
+  renderBody();
+  renderSwitch();
+  loadRates();
+  $("#back").href = "calculator.html#m=" + encode(st);
 }
 
 // ---------- receipt sharing ----------
@@ -254,8 +316,8 @@ function init() {
   const receiptOnly = new URLSearchParams(location.search).get("view") === "receipt";
   document.body.classList.toggle("receipt-only", receiptOnly);
   $("#report").hidden = false;
-  const ratesLoaded = render(st);
-  const total = gbp(st.r.c / 100, 2);
+  render(st);
+  const total = native(m.total, 2);
   const planned = !!st.r.p;
   if (receiptOnly) document.title = planned ? `${total} meeting estimate` : `${total} meeting receipt`;
 
@@ -285,7 +347,7 @@ function init() {
     flash(btn, "Saved");
   });
   // Wait for the print animation and fonts, then pre-render the image.
-  Promise.all([ratesLoaded, new Promise((r) => setTimeout(r, 1700))]).then(prepareImage);
+  setTimeout(prepareImage, 1700); // after the "printing" reveal
   $("#copy").addEventListener("click", async (e) => {
     try { await navigator.clipboard.writeText(location.href); e.target.textContent = "Copied!"; setTimeout(() => (e.target.textContent = "Copy report link"), 1500); } catch {}
   });

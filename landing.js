@@ -1,15 +1,15 @@
-import { ROLES, LOCATIONS } from "./data.js";
+import { COUNTRIES } from "./data.js";
 import * as calc from "./calc.js";
 import { encode } from "./share.js";
 
 const $ = (s) => document.querySelector(s);
-const { gbp } = calc;
+const gbp = (n, dp = 0) => calc.formatMoney(n, "GBP", dp); // the landing page tells a UK story
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Average true-cost hourly rate per person, from the app's own salary data
 // (leaving out the C-suite and graduates so it reflects a typical meeting).
 const UK = { location: "UK average", mode: "true" };
-const typical = Object.keys(ROLES).filter((r) => !/CEO|CTO|Director|Head of|Graduate/.test(r));
+const typical = Object.keys(COUNTRIES.UK.roles).filter((r) => !/CEO|CTO|Director|Head of|Graduate/.test(r));
 const AVG_HOURLY = typical.reduce((t, role) => t + calc.hourlyRate(UK, { role, count: 1, salary: null }), 0) / typical.length;
 
 // ---------- odometer (same mechanics as the calculator) ----------
@@ -92,7 +92,7 @@ $("#miniSaves").innerHTML = [
 ].map(([k, v]) => `<div><span>${k}</span><strong>${gbp(v, 2)} saved</strong></div>`).join("");
 
 // ---------- receipt demo ----------
-function renderReceipt(rates) {
+function renderReceipt() {
   const lines = shares.slice(0, 4);
   const rest = shares.slice(4).reduce((t, s) => t + s.cost, 0);
   $("#miniReceipt").innerHTML = `
@@ -103,22 +103,11 @@ function renderReceipt(rates) {
     <div class="mr-line"><span>${shares.length - 4} more</span><span>${gbp(rest, 2)}</span></div>
     <div class="mr-rule double"></div>
     <div class="mr-total"><span>TOTAL</span><strong>${gbp(sampleTotal, 2)}</strong></div>
-    ${rates
-      ? `<div class="mr-line muted"><span>USD</span><span>${(sampleTotal * rates.USD).toLocaleString("en-US", { style: "currency", currency: "USD" })}</span></div>
-         <div class="mr-line muted"><span>BTC</span><span>₿${(sampleTotal * rates.BTC).toFixed(8)}</span></div>`
-      : `<div class="mr-line muted"><span>USD · BTC</span><span>at live rates</span></div>`}
     <div class="mr-rule"></div>
     <div class="mr-thanks">Thank you for meeting.</div>
     <div class="mr-barcode"></div>`;
 }
-renderReceipt(null);
-fetch("https://api.coinbase.com/v2/exchange-rates?currency=GBP")
-  .then((r) => (r.ok ? r.json() : Promise.reject()))
-  .then(({ data }) => {
-    const rates = { USD: Number(data.rates.USD), BTC: Number(data.rates.BTC) };
-    if (Number.isFinite(rates.USD) && Number.isFinite(rates.BTC)) renderReceipt(rates);
-  })
-  .catch(() => {});
+renderReceipt();
 
 // ---------- sample report link: last Monday's 9am stand-up that ran long ----------
 const monday = new Date();
@@ -129,8 +118,9 @@ $("#sampleReport").href = "report.html#m=" + encode({
   r: { c: Math.round(sampleTotal * 100), t: MINUTES * 60000, s: monday.getTime() },
 });
 
-$("#roleCount").textContent = Object.keys(ROLES).length;
-$("#cityCount").textContent = Object.keys(LOCATIONS).length - 1; // not counting "UK average"
+$("#roleCount").textContent = Object.keys(COUNTRIES.UK.roles).length;
+$("#ukCities").textContent = Object.keys(COUNTRIES.UK.cities).length - 1; // not counting the national average
+$("#usCities").textContent = Object.keys(COUNTRIES.US.cities).length - 1;
 
 // ---------- the calendar ----------
 // [day, start, minutes, title, people, kind]

@@ -56,8 +56,8 @@
       </div>
       <dl class="stats">
         <div><dt id="elapsedLabel">Elapsed</dt><dd id="elapsed">00:00</dd></div>
-        <div><dt>Per minute</dt><dd id="perMinute">£0</dd></div>
-        <div><dt>Per hour</dt><dd id="perHour">£0</dd></div>
+        <div><dt>Per minute</dt><dd id="perMinute">–</dd></div>
+        <div><dt>Per hour</dt><dd id="perHour">–</dd></div>
         <div><dt>People</dt><dd id="people">0</dd></div>
       </dl>
       <div id="result" class="result" hidden>
@@ -77,14 +77,18 @@
       </div>
 
       <div class="settings">
-        <label>
-          <span>Location</span>
-          <select id="location"></select>
-        </label>
+        <div class="place">
+          <label for="location">Location</label>
+          <div class="place-row">
+            <select id="location"></select>
+            <button type="button" id="nearMe" class="btn btn-small btn-ghost near">📍 Near me</button>
+          </div>
+          <p id="nearStatus" class="near-status" role="status"></p>
+        </div>
         <label>
           <span>Cost basis</span>
           <select id="mode">
-            <option value="true">True cost (incl. NI, pension, overheads)</option>
+            <option value="true">True cost (salary + employer costs)</option>
             <option value="salary">Salary only</option>
           </select>
         </label>
@@ -106,8 +110,8 @@
     </section>
 
     <footer class="foot muted">
-      Salaries are rough UK estimates adjusted by region. Edit any figure to match reality.
-      True cost adds 15% employer NI (above £5k), 5% pension and 10% overheads, over 1,725 working hours a year.
+      Salaries are rough estimates for each role, adjusted by city. Edit any figure to match reality.
+      <span id="costNote"></span>
     </footer>
   </main>
 

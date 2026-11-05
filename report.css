@@ -181,3 +181,14 @@ dd { margin: 0; text-align: right; }
 .receipt-only .receipt-cta { display: block; }
 .receipt-only .page { padding-top: 6vh; }
 @media print { .receipt-actions, .receipt-cta { display: none !important; } }
+
+/* currency switch */
+.cur-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.cur-label { color: var(--muted); font-size: .85rem; }
+.cur-switch { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.cur-switch button { font: inherit; font-size: .85rem; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+.cur-switch button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.cur-switch button:disabled { opacity: .4; cursor: default; }
+.foot p { margin: 0 0 6px; }
+@media (min-width: 561px) { .c-row { grid-template-columns: minmax(0, 11rem) 1fr auto; } }
+.c-value { min-width: 5.5rem; }

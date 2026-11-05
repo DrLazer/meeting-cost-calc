@@ -45,8 +45,6 @@
             <span>TOTAL</span>
             <strong id="total"></strong>
           </div>
-          <dl class="r-fx" id="fx"></dl>
-          <p class="r-fx-note" id="fxNote">Fetching live exchange rates…</p>
           <div class="r-rule"></div>
           <p class="r-thanks" id="rThanks">Thank you for meeting.<br>Please consider an email next time.</p>
           <div class="r-barcode" id="barcode" aria-hidden="true"></div>
@@ -61,6 +59,10 @@
 
       <div class="content">
         <section class="headline">
+          <div class="cur-row">
+            <span class="cur-label" id="curLabel">Show in</span>
+            <div class="cur-switch" id="curSwitch" role="group" aria-labelledby="curLabel"></div>
+          </div>
           <p class="lede" id="lede"></p>
           <div class="kpis" id="kpis"></div>
         </section>
@@ -80,16 +82,16 @@
         <section class="block">
           <h2>If it happens every…</h2>
           <div class="recurring" id="recurring"></div>
-          <p class="hint">Based on 46 working weeks a year.</p>
+          <p class="hint" id="recurNote"></p>
         </section>
 
         <section class="block">
           <h2 id="hInstead">What that money could have bought</h2>
           <ul class="instead" id="instead"></ul>
-          <p class="hint">Rough UK prices. People-time is costed with the same assumptions as the meeting.</p>
+          <p class="hint" id="insteadNote"></p>
         </section>
 
-        <footer class="foot" id="assumptions"></footer>
+        <footer class="foot"><p class="cur-note" id="curNote"></p><p id="assumptions"></p></footer>
       </div>
     </div>
   </main>
