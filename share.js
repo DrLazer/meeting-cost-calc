@@ -7,12 +7,10 @@ export function encode(obj) {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 export function decode(str) {
-  // Current format first, then the original btoa(encodeURIComponent(json)) links.
   try {
     const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
     return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
   } catch {}
-  try { return JSON.parse(decodeURIComponent(atob(str))); } catch {}
   return null;
 }
 export function readMeetingHash() {
