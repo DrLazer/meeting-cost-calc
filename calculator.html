@@ -19,8 +19,30 @@
     </header>
 
     <section class="meter card" aria-live="polite">
+      <div class="mode-tabs" role="tablist" aria-label="How to cost this meeting">
+        <button role="tab" id="tabLive" aria-selected="true" aria-controls="liveControls">Live meeting</button>
+        <button role="tab" id="tabPlan" aria-selected="false" aria-controls="planControls">Plan ahead</button>
+      </div>
       <div class="odometer" id="odometer" aria-label="Meeting cost"></div>
-      <div class="controls">
+      <div id="planControls" class="plan" hidden>
+        <div class="plan-field">
+          <span class="plan-label" id="lenLabel">How long?</span>
+          <div class="chips" role="group" aria-labelledby="lenLabel">
+            <button type="button" class="chip" data-mins="15">15m</button>
+            <button type="button" class="chip" data-mins="30">30m</button>
+            <button type="button" class="chip" data-mins="45">45m</button>
+            <button type="button" class="chip" data-mins="60">1h</button>
+            <button type="button" class="chip" data-mins="90">1h 30m</button>
+            <label class="chip chip-input"><input id="planMins" type="number" min="5" max="600" step="5" value="30" aria-label="Length in minutes"> min</label>
+          </div>
+        </div>
+        <label class="plan-field">
+          <span class="plan-label">Starts <em>(optional)</em></span>
+          <input id="planStart" type="datetime-local">
+        </label>
+        <a id="planReport" class="btn btn-go" href="report.html" target="_blank" rel="noopener">See the cost</a>
+      </div>
+      <div class="controls" id="liveControls">
         <button id="go" class="btn btn-go">GO</button>
         <button id="reset" class="btn btn-ghost" disabled>Reset</button>
         <label class="speed">
@@ -33,7 +55,7 @@
         </label>
       </div>
       <dl class="stats">
-        <div><dt>Elapsed</dt><dd id="elapsed">00:00</dd></div>
+        <div><dt id="elapsedLabel">Elapsed</dt><dd id="elapsed">00:00</dd></div>
         <div><dt>Per minute</dt><dd id="perMinute">£0</dd></div>
         <div><dt>Per hour</dt><dd id="perHour">£0</dd></div>
         <div><dt>People</dt><dd id="people">0</dd></div>

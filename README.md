@@ -10,6 +10,7 @@ Add the job titles in the room, pick a location, hit **GO**. Stop it when the me
 - Approximate UK salaries by role, adjusted by city (every figure is editable)
 - "True cost" mode adds employer NI, pension and overheads
 - Save teams in your browser for quick reuse
+- Plan ahead: cost a meeting from its length and jump straight to an estimate report
 - Share a meeting via its URL
 - Share just the receipt, as a link or a PNG image
 - Full meeting report: an itemised receipt with USD and BTC conversions, cost by role, what you'd save with a shorter meeting, yearly cost if it recurs, and what else the money could have bought

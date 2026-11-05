@@ -49,6 +49,7 @@ function barcode(seed) {
 
 function render(st) {
   const r = st.r;
+  const planned = !!r.p; // costed ahead of time from its length, not metered
   const total = r.c / 100;
   const ms = Math.max(1000, r.t || 0);
   const mins = ms / 60000;
@@ -68,7 +69,13 @@ function render(st) {
   const time = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const minsLabel = mins < 1 ? `${Math.round(ms / 1000)}-second` : `${Math.round(mins)}-minute`;
 
-  document.title = `${money(total)} meeting · Meeting Report`;
+  document.title = planned ? `${money(total)} meeting estimate · Meeting Report` : `${money(total)} meeting · Meeting Report`;
+  if (planned) {
+    $("#rSub").textContent = "Estimate for a planned meeting";
+    $("#rThanks").innerHTML = "There's still time to<br>send an email instead.";
+    $("#hShorter").textContent = "If it were shorter";
+    $("#hInstead").textContent = "What that money could buy";
+  }
 
   // ---- receipt ----
   const no = receiptNumber(window.location.hash || JSON.stringify(st));
@@ -96,7 +103,7 @@ function render(st) {
 
   // ---- headline ----
   $("#lede").innerHTML =
-    `This ${minsLabel} meeting of ${plural(people, "person", "people")} in ${esc(place)} cost <strong>${gbp(total, 2)}</strong>` +
+    `This ${minsLabel} meeting of ${plural(people, "person", "people")} in ${esc(place)} ${planned ? "will cost" : "cost"} <strong>${gbp(total, 2)}</strong>` +
     (start ? `, starting at ${time(start)} on ${start.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.` : ".");
   $("#kpis").innerHTML = [
     [gbp(total / mins, 2), "every minute"],
@@ -249,7 +256,8 @@ function init() {
   $("#report").hidden = false;
   const ratesLoaded = render(st);
   const total = gbp(st.r.c / 100, 2);
-  if (receiptOnly) document.title = `${total} meeting receipt`;
+  const planned = !!st.r.p;
+  if (receiptOnly) document.title = planned ? `${total} meeting estimate` : `${total} meeting receipt`;
 
   const base = location.origin + location.pathname;
   const receiptUrl = base + "?view=receipt" + location.hash;
@@ -257,7 +265,7 @@ function init() {
 
   $("#shareReceipt").addEventListener("click", async (e) => {
     if (navigator.share) {
-      try { await navigator.share({ title: "Meeting receipt", text: `This meeting cost ${total}.`, url: receiptUrl }); } catch {}
+      try { await navigator.share({ title: "Meeting receipt", text: planned ? `This meeting will cost ${total}.` : `This meeting cost ${total}.`, url: receiptUrl }); } catch {}
       return;
     }
     try { await navigator.clipboard.writeText(receiptUrl); flash(e.target, "Link copied!"); } catch {}

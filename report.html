@@ -33,7 +33,7 @@
         <article class="receipt" id="receipt" aria-label="Meeting receipt">
           <header class="r-head">
             <div class="r-brand">MEETING COST</div>
-            <div class="r-sub">Itemised bill for one meeting</div>
+            <div class="r-sub" id="rSub">Itemised bill for one meeting</div>
             <div class="r-meta" id="meta"></div>
           </header>
           <div class="r-rule"></div>
@@ -48,7 +48,7 @@
           <dl class="r-fx" id="fx"></dl>
           <p class="r-fx-note" id="fxNote">Fetching live exchange rates…</p>
           <div class="r-rule"></div>
-          <p class="r-thanks">Thank you for meeting.<br>Please consider an email next time.</p>
+          <p class="r-thanks" id="rThanks">Thank you for meeting.<br>Please consider an email next time.</p>
           <div class="r-barcode" id="barcode" aria-hidden="true"></div>
           <div class="r-no" id="receiptNo"></div>
         </article>
@@ -73,7 +73,7 @@
         </section>
 
         <section class="block">
-          <h2>If it had been shorter</h2>
+          <h2 id="hShorter">If it had been shorter</h2>
           <ul class="savings" id="savings"></ul>
         </section>
 
@@ -84,7 +84,7 @@
         </section>
 
         <section class="block">
-          <h2>What that money could have bought</h2>
+          <h2 id="hInstead">What that money could have bought</h2>
           <ul class="instead" id="instead"></ul>
           <p class="hint">Rough UK prices. People-time is costed with the same assumptions as the meeting.</p>
         </section>

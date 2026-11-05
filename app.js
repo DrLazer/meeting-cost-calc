@@ -14,6 +14,9 @@ let elapsedMs = 0;     // meeting time (scaled by speed)
 let startedAt = null;  // wall-clock time GO was first pressed
 let lastTick = 0;
 let activeTeam = null; // name of the saved team currently loaded, if any
+let planMode = false;  // "Plan ahead": cost a meeting from its length, no meter
+let planMins = 30;
+let shownPence = 0;    // what the odometer currently shows
 
 const { gbp, fmtTime } = calc;
 const rowSalary = (row) => calc.rowSalary(state, row);
@@ -41,6 +44,7 @@ function buildOdometer() {
 // Real odometer behaviour: the lowest wheel turns continuously; each higher
 // wheel only rolls while every wheel below it is passing 9 → 0.
 function renderOdometer(p) {
+  shownPence = p;
   const max = 10 ** DIGITS - 1;
   p = Math.min(p, max);
   const top = Math.floor(p).toString().length;
@@ -71,6 +75,7 @@ function start() {
   if (!headcount()) return;
   if (!elapsedMs) startedAt = Date.now();
   running = true;
+  $("#tabPlan").disabled = true;
   lastTick = performance.now();
   $("#go").textContent = "STOP";
   $("#go").classList.add("stop");
@@ -81,6 +86,7 @@ function start() {
 }
 function stop() {
   running = false;
+  $("#tabPlan").disabled = false;
   $("#go").textContent = "GO";
   $("#go").classList.remove("stop");
   $("#reset").disabled = false;
@@ -145,6 +151,61 @@ function changed() {
   $("#go").disabled = !headcount();
   writeHash();
   renderTeams();
+  if (planMode) updatePlan();
+}
+
+// ---------- plan ahead ----------
+const pad2 = (n) => String(n).padStart(2, "0");
+const toLocalInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+function nextHour() {
+  const d = new Date();
+  d.setHours(d.getHours() + 1, 0, 0, 0);
+  return d;
+}
+function planCostPence() {
+  return Math.round(costPerHour() * (planMins / 60) * 100);
+}
+let tween = 0;
+function spinTo(target) {
+  // Roll the odometer to the projected cost rather than jumping there.
+  const from = shownPence, t0 = performance.now(), id = ++tween;
+  const step = (now) => {
+    if (id !== tween) return;
+    const k = Math.min(1, (now - t0) / 700);
+    renderOdometer(from + (target - from) * (1 - (1 - k) ** 3));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function updatePlan() {
+  spinTo(planCostPence());
+  $("#elapsed").textContent = fmtTime(planMins * 60000);
+  $("#planMins").value = planMins;
+  document.querySelectorAll(".chip[data-mins]").forEach((c) => c.setAttribute("aria-pressed", String(Number(c.dataset.mins) === planMins)));
+  const start = $("#planStart").value ? new Date($("#planStart").value).getTime() : null;
+  const link = $("#planReport");
+  link.href = "report.html#m=" + encode({ ...state, r: { c: planCostPence(), t: planMins * 60000, ...(start ? { s: start } : {}), p: 1 } });
+  link.classList.toggle("disabled", !headcount());
+  link.setAttribute("aria-disabled", String(!headcount()));
+}
+function setMode(plan) {
+  if (running && plan) return;
+  planMode = plan;
+  $("#tabLive").setAttribute("aria-selected", String(!plan));
+  $("#tabPlan").setAttribute("aria-selected", String(plan));
+  $("#planControls").hidden = !plan;
+  $("#liveControls").hidden = plan;
+  $("#elapsedLabel").textContent = plan ? "Length" : "Elapsed";
+  if (plan) {
+    $("#result").hidden = true;
+    if (!$("#planStart").value) $("#planStart").value = toLocalInput(nextHour());
+    updatePlan();
+  } else {
+    tween++;
+    renderOdometer(costPence);
+    $("#elapsed").textContent = fmtTime(elapsedMs);
+    if (costPence && !running) showResult();
+  }
 }
 
 // ---------- randomise ----------
@@ -245,9 +306,25 @@ function init() {
   $("#copyResult").addEventListener("click", (e) => copy(resultSentence() + " " + meetingUrl(true), e.target));
   $("#copyLink").addEventListener("click", (e) => copy(meetingUrl(true), e.target));
 
+  $("#tabLive").addEventListener("click", () => setMode(false));
+  $("#tabPlan").addEventListener("click", () => setMode(true));
+  document.querySelectorAll(".chip[data-mins]").forEach((c) =>
+    c.addEventListener("click", () => { planMins = Number(c.dataset.mins); updatePlan(); }));
+  $("#planMins").addEventListener("input", (e) => {
+    const v = parseInt(e.target.value);
+    if (v >= 1 && v <= 600) { planMins = v; updatePlan(); }
+  });
+  $("#planMins").addEventListener("change", (e) => { planMins = Math.min(600, Math.max(5, parseInt(e.target.value) || 30)); updatePlan(); });
+  $("#planStart").addEventListener("change", updatePlan);
+
   const shared = readMeetingHash();
   applyState(shared || randomMeeting());
-  if (shared?.r?.c > 0) {
+  if (shared?.r?.p) {
+    // Opened from a planned-meeting estimate: go back to planning it.
+    planMins = Math.max(1, Math.round((shared.r.t || 1800000) / 60000));
+    if (shared.r.s) $("#planStart").value = toLocalInput(new Date(shared.r.s));
+    setMode(true);
+  } else if (shared?.r?.c > 0) {
     // Opened from a shared result: show the finished meeting.
     costPence = shared.r.c;
     elapsedMs = Math.max(0, shared.r.t || 0);
