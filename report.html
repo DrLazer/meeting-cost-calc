@@ -7,7 +7,7 @@
   <meta name="description" content="The full bill for a meeting: who was there, what it cost, and what else that money could have done.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="report.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
 </head>
@@ -52,6 +52,11 @@
           <div class="r-barcode" id="barcode" aria-hidden="true"></div>
           <div class="r-no" id="receiptNo"></div>
         </article>
+        <div class="receipt-actions">
+          <button id="shareReceipt" class="btn">Share receipt</button>
+          <button id="saveImage" class="btn btn-ghost">Save image</button>
+        </div>
+        <p class="receipt-cta"><a class="link" id="fullReport" href="#">See the full report</a> · <a class="link" href="index.html">Cost your own meeting</a></p>
       </aside>
 
       <div class="content">
@@ -88,6 +93,7 @@
       </div>
     </div>
   </main>
+  <script src="vendor/html-to-image.js" defer></script>
   <script type="module" src="report.js"></script>
 </body>
 </html>

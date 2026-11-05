@@ -167,3 +167,16 @@ dd { margin: 0; text-align: right; }
   .layout { grid-template-columns: 320px 1fr; gap: 32px; }
   .content { gap: 24px; }
 }
+
+/* receipt sharing */
+.receipt-actions { display: flex; gap: 8px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+.receipt-cta { display: none; text-align: center; font-size: .9rem; color: var(--muted); margin-top: 18px; }
+.receipt-cta .link { font-weight: 600; }
+
+/* receipt-only view: report.html?view=receipt#m=... */
+.receipt-only .bar, .receipt-only .content { display: none; }
+.receipt-only .layout { grid-template-columns: minmax(0, 380px); justify-content: center; }
+.receipt-only .receipt-col { position: static; }
+.receipt-only .receipt-cta { display: block; }
+.receipt-only .page { padding-top: 6vh; }
+@media print { .receipt-actions, .receipt-cta { display: none !important; } }

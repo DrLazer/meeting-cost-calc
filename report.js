@@ -175,7 +175,7 @@ function render(st) {
     "Hourly rates assume 1,725 working hours a year.";
 
   $("#back").href = "index.html#m=" + encode(st);
-  loadRates(total);
+  return loadRates(total);
 }
 
 async function loadRates(total) {
@@ -199,11 +199,85 @@ async function loadRates(total) {
   }
 }
 
+// ---------- receipt sharing ----------
+const isSafari = /AppleWebKit/.test(navigator.userAgent) && !/Chrome|CriOS|Android/.test(navigator.userAgent);
+let imagePromise = null;
+
+async function makeReceiptImage() {
+  const node = $("#receipt");
+  node.style.animation = "none"; // make sure the "printing" reveal isn't mid-way
+  await document.fonts?.ready;
+  const opts = { pixelRatio: 2, backgroundColor: undefined };
+  if (isSafari) await window.htmlToImage.toBlob(node, opts); // Safari needs a warm-up pass to embed fonts
+  const raw = await window.htmlToImage.toBlob(node, opts);
+  const blob = await onBackdrop(raw);
+  return new File([blob], `meeting-receipt-${$("#receiptNo").textContent.replace(/\W/g, "")}.png`, { type: "image/png" });
+}
+// Sit the receipt on the page's cream backdrop with some breathing room.
+async function onBackdrop(blob) {
+  const img = await createImageBitmap(blob);
+  const pad = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width + pad * 2;
+  canvas.height = img.height + pad * 2;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#f4f1ea";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.shadowColor = "rgba(40, 30, 10, 0.25)";
+  ctx.shadowBlur = 36;
+  ctx.shadowOffsetY = 18;
+  ctx.drawImage(img, pad, pad);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
+// Render the image ahead of time so sharing it happens straight from the tap
+// (mobile browsers only allow the share sheet right after a user gesture).
+function prepareImage() {
+  if (!imagePromise && window.htmlToImage) imagePromise = makeReceiptImage().catch(() => (imagePromise = null));
+  return imagePromise;
+}
+function flash(btn, text) {
+  const o = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => (btn.textContent = o), 1800);
+}
+
 function init() {
   const st = readMeetingHash();
   if (!st?.r?.c) { $("#empty").hidden = false; return; }
+  const receiptOnly = new URLSearchParams(location.search).get("view") === "receipt";
+  document.body.classList.toggle("receipt-only", receiptOnly);
   $("#report").hidden = false;
-  render(st);
+  const ratesLoaded = render(st);
+  const total = gbp(st.r.c / 100, 2);
+  if (receiptOnly) document.title = `${total} meeting receipt`;
+
+  const base = location.origin + location.pathname;
+  const receiptUrl = base + "?view=receipt" + location.hash;
+  $("#fullReport").href = base + location.hash;
+
+  $("#shareReceipt").addEventListener("click", async (e) => {
+    if (navigator.share) {
+      try { await navigator.share({ title: "Meeting receipt", text: `This meeting cost ${total}.`, url: receiptUrl }); } catch {}
+      return;
+    }
+    try { await navigator.clipboard.writeText(receiptUrl); flash(e.target, "Link copied!"); } catch {}
+  });
+  $("#saveImage").addEventListener("click", async (e) => {
+    const btn = e.target;
+    const file = await prepareImage();
+    if (!file) { flash(btn, "Couldn't make the image"); return; }
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: "Meeting receipt" }); return; } catch (err) { if (err.name === "AbortError") return; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    flash(btn, "Saved");
+  });
+  // Wait for the print animation and fonts, then pre-render the image.
+  Promise.all([ratesLoaded, new Promise((r) => setTimeout(r, 1700))]).then(prepareImage);
   $("#copy").addEventListener("click", async (e) => {
     try { await navigator.clipboard.writeText(location.href); e.target.textContent = "Copied!"; setTimeout(() => (e.target.textContent = "Copy report link"), 1500); } catch {}
   });
